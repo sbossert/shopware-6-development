@@ -1,11 +1,15 @@
 version: '3.7'
 
+networks:
+    shopware:
+
 services:
   app_server:
     image: shopware/development:latest
-    links:
-      - app_mysql:mysql
-      - mailhog:mailhog
+    networks:
+      shopware:
+        aliases:
+          - docker.vm
     extra_hosts:
       - "docker.vm:127.0.0.1"
     volumes:
@@ -19,26 +23,39 @@ services:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_USER: app
       MYSQL_PASSWORD: app
+    networks:
+      shopware:
+        aliases:
+          - mysql
 
-  app_cypress:
-    image: cypress/browsers:node10.11.0-chrome75
+  cypress:
+    image: cypress/included:3.8.1
     tty: true
-    links:
-      - app_server:docker.vm
+    ipc: host
     environment:
       - CYPRESS_baseUrl=http://docker.vm:8000
+      - DISPLAY
+    networks:
+      shopware:
     volumes:
-      - .:/app
-      - ./platform/src/Administration/Resources/app/administration/test/e2e:/e2e-Administration
-      - ./platform/src/Storefront/Resources/app/storefront/test/e2e:/e2e-Storefront
+      - ./vendor/shopware/platform/src/Storefront/Resources/app/storefront/test/e2e:/e2e-Storefront
+      - ./vendor/shopware/platform/src/Administration/Resources/app/administration/test/e2e:/e2e-Administration
+      # for Cypress to communicate with the X11 server pass this socket file
+      # in addition to any other mapped volumes
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    entrypoint: /bin/bash
 
   mailhog:
     image: mailhog/mailhog
+    networks:
+      shopware:
+        aliases:
+          - mailhog
 
   adminer:
     image: adminer:latest
-    links:
-      - app_mysql:mysql
+    networks:
+      shopware:
 
   elasticsearch:
     image: elastic/elasticsearch:7.1.1
